@@ -954,6 +954,7 @@ static enum protocol_allow_config get_protocol_config(const char *type)
 	if (!strcmp(type, "http") ||
 	    !strcmp(type, "https") ||
 	    !strcmp(type, "git") ||
+		!strcmp(type, "tls") ||
 	    !strcmp(type, "ssh") ||
 	    !strcmp(type, "file"))
 		return PROTOCOL_ALLOW_ALWAYS;
@@ -1052,6 +1053,7 @@ struct transport *transport_get(struct remote *remote, const char *url)
 	} else if (!is_url(url)
 		|| starts_with(url, "file://")
 		|| starts_with(url, "git://")
+		|| starts_with(url, "tls://") /* Git Over TLS */
 		|| starts_with(url, "ssh://")
 		|| starts_with(url, "git+ssh://") /* deprecated - do not use */
 		|| starts_with(url, "ssh+git://") /* deprecated - do not use */
