@@ -60,6 +60,7 @@ static int report_status;
 static int report_status_v2;
 static int use_sideband;
 static int use_atomic;
+static int use_balanced_atomic;
 static int use_push_options;
 static int quiet;
 static int prefer_ofs_delta = 1;
@@ -223,6 +224,11 @@ static int receive_pack_config(const char *var, const char *value, void *cb)
 
 	if (strcmp(var, "receive.advertiseatomic") == 0) {
 		advertise_atomic_push = git_config_bool(var, value);
+		return 0;
+	}
+
+	if (strcmp(var, "receive.balancedatomic") == 0) {
+		use_balanced_atomic = git_config_bool(var, value);
 		return 0;
 	}
 
@@ -1844,6 +1850,8 @@ static void execute_commands_atomic(struct command *commands,
 			goto failure;
 	}
 
+	// TODO: check balance-update hook
+
 	if (ref_transaction_commit(transaction, &err)) {
 		rp_error("%s", err.buf);
 		reported_error = "atomic transaction failed";
@@ -1951,7 +1959,7 @@ static void execute_commands(struct command *commands,
 			    (cmd->run_proc_receive || use_atomic))
 				cmd->error_string = "fail to run proc-receive hook";
 
-	if (use_atomic)
+	if (use_atomic || use_balanced_atomic)
 		execute_commands_atomic(commands, si);
 	else
 		execute_commands_non_atomic(commands, si);
