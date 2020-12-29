@@ -98,6 +98,8 @@ int run_diff_files(struct rev_info *revs, unsigned int option)
 
 	diff_set_mnemonic_prefix(&revs->diffopt, "i/", "w/");
 
+	refresh_fsmonitor(istate);
+
 	if (diff_unmerged_stage < 0)
 		diff_unmerged_stage = 2;
 	entries = istate->cache_nr;
@@ -198,8 +200,17 @@ int run_diff_files(struct rev_info *revs, unsigned int option)
 		if (ce_uptodate(ce) || ce_skip_worktree(ce))
 			continue;
 
-		/* If CE_VALID is set, don't look at workdir for file removal */
-		if (ce->ce_flags & CE_VALID) {
+		/*
+		 * When CE_VALID is set (via "update-index --assume-unchanged"
+		 * or via adding paths while core.ignorestat is set to true),
+		 * the user has promised that the working tree file for that
+		 * path will not be modified.  When CE_FSMONITOR_VALID is true,
+		 * the fsmonitor knows that the path hasn't been modified since
+		 * we refreshed the cached stat information.  In either case,
+		 * we do not have to stat to see if the path has been removed
+		 * or modified.
+		 */
+		if (ce->ce_flags & (CE_VALID | CE_FSMONITOR_VALID)) {
 			changed = 0;
 			newmode = ce->ce_mode;
 		} else {
@@ -595,10 +606,12 @@ int do_diff_cache(const struct object_id *tree_oid, struct diff_options *opt)
 
 	repo_init_revisions(opt->repo, &revs, NULL);
 	copy_pathspec(&revs.prune_data, &opt->pathspec);
+	diff_setup_done(&revs.diffopt);
 	revs.diffopt = *opt;
 
 	if (diff_cache(&revs, tree_oid, NULL, 1))
 		exit(128);
+	clear_pathspec(&revs.prune_data);
 	return 0;
 }
 
